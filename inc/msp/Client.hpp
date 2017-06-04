@@ -72,6 +72,13 @@ private:
     C *const context;
 };
 
+enum ParserState {
+    PREAMBLE,
+    HEADER,
+    PAYLOAD_CRC,
+    END
+};
+
 enum MessageStatus {
     OK,         // no errors
     FAIL_ID,    // message ID is unknown
@@ -80,6 +87,7 @@ enum MessageStatus {
 
 struct ReceivedMessage {
     uint8_t id;
+    uint8_t length;
     std::vector<uint8_t> data;
     MessageStatus status;
 };
@@ -249,18 +257,26 @@ private:
      */
     uint8_t crc(const uint8_t id, const ByteVector &data);
 
+    void onPreamble(const asio::error_code& error, const std::size_t bytes_transferred);
+
     /**
      * @brief onHeaderStart callback for received data
      * @param error
      * @param bytes_transferred
      */
-    void onHeaderStart(const asio::error_code& error, const std::size_t bytes_transferred);
+    void onHeader(const asio::error_code& error, const std::size_t bytes_transferred);
+
+    void onDataCRC(const asio::error_code& error, const std::size_t bytes_transferred);
+
+    void onMessageEND();
 
 private:
     // I/O
     asio::io_service io;
     asio::serial_port port;
     asio::streambuf buffer;
+    // parser state
+    ParserState parser_state;
     // threading
     std::thread thread;
     bool running;

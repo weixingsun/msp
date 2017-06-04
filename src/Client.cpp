@@ -25,12 +25,33 @@ void Client::connect(const std::string &device, const uint baudrate) {
 }
 
 void Client::waitForOneMessage() {
-    // register handler for incomming messages
     mutex_buffer.lock();
-    asio::async_read_until(port, buffer, "$M", std::bind(&Client::onHeaderStart, this, std::placeholders::_1, std::placeholders::_2));
-    // wait for incomming data
-    io.run();
-    io.reset();
+    parser_state = PREAMBLE;
+    while(parser_state!=END) {
+        std::cout << "state: " << parser_state << std::endl;
+        // register handler for incomming messages
+        switch (parser_state) {
+        case PREAMBLE:
+            asio::async_read_until(port, buffer, "$M",
+                std::bind(&Client::onPreamble, this, std::placeholders::_1, std::placeholders::_2));
+            break;
+        case HEADER:
+            asio::async_read(port, buffer, asio::transfer_exactly(3),
+                std::bind(&Client::onHeader, this, std::placeholders::_1, std::placeholders::_2));
+            break;
+        case PAYLOAD_CRC:
+            asio::async_read(port, buffer, asio::transfer_exactly(request_received->length+1),
+                std::bind(&Client::onDataCRC, this, std::placeholders::_1, std::placeholders::_2));
+            break;
+        case END:
+            onMessageEND();
+            break;
+        }
+        // wait for incomming data
+        io.run();
+        io.reset();
+        std::cout << "handeled: " << parser_state << std::endl;
+    }
     mutex_buffer.unlock();
 }
 
@@ -132,11 +153,27 @@ uint8_t Client::crc(const uint8_t id, const ByteVector &data) {
     return crc;
 }
 
-void Client::onHeaderStart(const asio::error_code& error, const std::size_t bytes_transferred) {
-    if(error) { return; }
+void Client::onPreamble(const asio::error_code& error, const std::size_t bytes_transferred) {
+    //std::cout << "preamble" << std::endl;
+    if(error) {
+        std::cout << "preamble err" << std::endl;
+        //std::cerr << error.message() << std::endl;
+        //std::cerr << error << std::endl;
+        return;
+    }
 
     // ignore and remove header bytes
     buffer.consume(bytes_transferred);
+
+    parser_state = HEADER;
+    std::cout << "preamble" << std::endl;
+}
+
+void Client::onHeader(const asio::error_code& error, const std::size_t bytes_transferred) {
+    if(error) {
+        parser_state = END;
+        return;
+    }
 
     MessageStatus status = OK;
 
@@ -150,33 +187,101 @@ void Client::onHeaderStart(const asio::error_code& error, const std::size_t byte
     // message ID
     const uint8_t id = uint8_t(buffer.sbumpc());
 
-    if(print_warnings && !ok_id) {
-        std::cerr << "Message with ID " << uint(id) << " is not recognised!" << std::endl;
-    }
-
-    // payload
-    std::vector<uint8_t> data;
-    for(uint i(0); i<len; i++) { data.push_back(uint8_t(buffer.sbumpc())); }
-
-    // CRC
-    const uint8_t rcv_crc = uint8_t(buffer.sbumpc());
-    const uint8_t exp_crc = crc(id,data);
-    const bool ok_crc = (rcv_crc==exp_crc);
-
-    if(print_warnings && !ok_crc) {
-        std::cerr << "Message with ID " << uint(id) << " has wrong CRC! (expected: " << uint(exp_crc) << ", received: "<< uint(rcv_crc) << ")" << std::endl;
-    }
-
     if(!ok_id) { status = FAIL_ID; }
-    else if(!ok_crc) { status = FAIL_CRC; }
 
     mutex_request.lock();
     request_received.reset(new ReceivedMessage());
     request_received->id = id;
+    request_received->length = len;
+    request_received->status = status;
+    mutex_request.unlock();
+
+    if(print_warnings && !ok_id) {
+        std::cerr << "Message with ID " << uint(id) << " is not recognised!" << std::endl;
+    }
+
+    parser_state = ok_id ? PAYLOAD_CRC : END;
+
+    ////////
+
+//    // payload
+//    std::vector<uint8_t> data;
+//    for(uint i(0); i<len; i++) { data.push_back(uint8_t(buffer.sbumpc())); }
+
+//    // CRC
+//    const uint8_t rcv_crc = uint8_t(buffer.sbumpc());
+//    const uint8_t exp_crc = crc(id,data);
+//    const bool ok_crc = (rcv_crc==exp_crc);
+
+//    if(print_warnings && !ok_crc) {
+//        std::cerr << "Message with ID " << uint(id) << " has wrong CRC! (expected: " << uint(exp_crc) << ", received: "<< uint(rcv_crc) << ")" << std::endl;
+//    }
+
+//    if(!ok_id) { status = FAIL_ID; }
+//    else if(!ok_crc) { status = FAIL_CRC; }
+
+//    mutex_request.lock();
+//    request_received.reset(new ReceivedMessage());
+//    request_received->id = id;
+//    request_received->data = data;
+//    request_received->status = status;
+//    mutex_request.unlock();
+
+//    // notify waiting request methods
+//    cv_request.notify_one();
+//    // notify waiting respond methods
+//    cv_ack.notify_one();
+
+//    // check subscriptions
+//    mutex_callbacks.lock();
+//    if(status==OK && subscriptions.count(ID(id))) {
+//        // fetch message type, decode payload
+//        msp::Request *const req = subscribed_requests.at(ID(id));
+//        req->decode(data);
+//        // call callback
+//        subscriptions.at(ID(id))->call(*req);
+//    }
+//    mutex_callbacks.unlock();
+}
+
+void Client::onDataCRC(const asio::error_code& error, const std::size_t bytes_transferred) {
+    if(error) {
+        parser_state = END;
+        return;
+    }
+
+    // payload
+    std::vector<uint8_t> data;
+    for(uint i(0); i<request_received->length; i++) {
+        data.push_back(uint8_t(buffer.sbumpc()));
+    }
+
+    // CRC
+    const uint8_t rcv_crc = uint8_t(buffer.sbumpc());
+    const uint8_t exp_crc = crc(request_received->id,data);
+    const bool ok_crc = (rcv_crc==exp_crc);
+
+    if(print_warnings && !ok_crc) {
+        std::cerr << "Message with ID " << uint(request_received->id) << " has wrong CRC! (expected: " << uint(exp_crc) << ", received: "<< uint(rcv_crc) << ")" << std::endl;
+    }
+
+    MessageStatus status = request_received->status;
+    if(request_received->status==OK && !ok_crc) {
+        status = FAIL_CRC;
+    }
+
+//    if(!ok_id) { status = FAIL_ID; }
+//    else if(!ok_crc) { status = FAIL_CRC; }
+
+    mutex_request.lock();
     request_received->data = data;
     request_received->status = status;
     mutex_request.unlock();
 
+    parser_state = END;
+}
+
+void Client::onMessageEND() {
     // notify waiting request methods
     cv_request.notify_one();
     // notify waiting respond methods
@@ -184,12 +289,12 @@ void Client::onHeaderStart(const asio::error_code& error, const std::size_t byte
 
     // check subscriptions
     mutex_callbacks.lock();
-    if(status==OK && subscriptions.count(ID(id))) {
+    if(request_received->status==OK && subscriptions.count(ID(request_received->id))) {
         // fetch message type, decode payload
-        msp::Request *const req = subscribed_requests.at(ID(id));
-        req->decode(data);
+        msp::Request *const req = subscribed_requests.at(ID(request_received->id));
+        req->decode(request_received->data);
         // call callback
-        subscriptions.at(ID(id))->call(*req);
+        subscriptions.at(ID(request_received->id))->call(*req);
     }
     mutex_callbacks.unlock();
 }
