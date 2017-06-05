@@ -26,8 +26,8 @@ void Client::connect(const std::string &device, const uint baudrate) {
 
 void Client::waitForOneMessage() {
     mutex_buffer.lock();
-    parser_state = PREAMBLE;
-    while(parser_state!=END) {
+    //parser_state = PREAMBLE;
+    //while(parser_state!=END) {
         std::cout << "state: " << parser_state << std::endl;
         // register handler for incomming messages
         switch (parser_state) {
@@ -36,6 +36,7 @@ void Client::waitForOneMessage() {
                 std::bind(&Client::onPreamble, this, std::placeholders::_1, std::placeholders::_2));
             break;
         case HEADER:
+            //exit(EXIT_FAILURE);
             asio::async_read(port, buffer, asio::transfer_exactly(3),
                 std::bind(&Client::onHeader, this, std::placeholders::_1, std::placeholders::_2));
             break;
@@ -43,20 +44,26 @@ void Client::waitForOneMessage() {
             asio::async_read(port, buffer, asio::transfer_exactly(request_received->length+1),
                 std::bind(&Client::onDataCRC, this, std::placeholders::_1, std::placeholders::_2));
             break;
+        case PROCESS:
+            onProcess();
+            break;
         case END:
-            onMessageEND();
+            parser_state = PREAMBLE;
             break;
         }
         // wait for incomming data
         io.run();
+        //io.run_one();
+        //io.poll_one();
         io.reset();
         std::cout << "handeled: " << parser_state << std::endl;
-    }
+    //}jjj
     mutex_buffer.unlock();
 }
 
 void Client::start() {
     thread = std::thread([this]{
+        parser_state = PREAMBLE;
         running = true;
         while(running) { waitForOneMessage(); }
     });
@@ -154,10 +161,11 @@ uint8_t Client::crc(const uint8_t id, const ByteVector &data) {
 }
 
 void Client::onPreamble(const asio::error_code& error, const std::size_t bytes_transferred) {
-    //std::cout << "preamble" << std::endl;
+    std::cout << "preamble" << std::endl;
+    std::cout << "preamble: " << parser_state << std::endl;
     if(error) {
-        std::cout << "preamble err" << std::endl;
-        //std::cerr << error.message() << std::endl;
+        //std::cout << "preamble err" << std::endl;
+        std::cerr << "onPreamble: " << error.message() << std::endl;
         //std::cerr << error << std::endl;
         return;
     }
@@ -171,9 +179,11 @@ void Client::onPreamble(const asio::error_code& error, const std::size_t bytes_t
 
 void Client::onHeader(const asio::error_code& error, const std::size_t bytes_transferred) {
     if(error) {
+        std::cerr << "onHeader: " << error.message() << std::endl;
         parser_state = END;
         return;
     }
+    //exit(EXIT_FAILURE);
 
     MessageStatus status = OK;
 
@@ -278,10 +288,10 @@ void Client::onDataCRC(const asio::error_code& error, const std::size_t bytes_tr
     request_received->status = status;
     mutex_request.unlock();
 
-    parser_state = END;
+    parser_state = ok_crc ? PROCESS : END;
 }
 
-void Client::onMessageEND() {
+void Client::onProcess() {
     // notify waiting request methods
     cv_request.notify_one();
     // notify waiting respond methods
@@ -297,6 +307,10 @@ void Client::onMessageEND() {
         subscriptions.at(ID(request_received->id))->call(*req);
     }
     mutex_callbacks.unlock();
+
+    parser_state = PREAMBLE;
+
+    exit(EXIT_FAILURE);
 }
 
 } // namespace client

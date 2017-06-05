@@ -111,6 +111,8 @@ int main(int argc, char *argv[]) {
     // wait for connection
     fcu.initialise();
 
+    //exit(EXIT_SUCCESS);
+
     App app("MultiWii", 512.0, 1.0/4.096, 0.92f/10.0f, 9.80665f);
     // define subscriptions with specific period
     fcu.subscribe(&App::onIdent, &app, 10);

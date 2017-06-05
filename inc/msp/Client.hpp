@@ -76,6 +76,7 @@ enum ParserState {
     PREAMBLE,
     HEADER,
     PAYLOAD_CRC,
+    PROCESS,
     END
 };
 
@@ -268,7 +269,7 @@ private:
 
     void onDataCRC(const asio::error_code& error, const std::size_t bytes_transferred);
 
-    void onMessageEND();
+    void onProcess();
 
 private:
     // I/O

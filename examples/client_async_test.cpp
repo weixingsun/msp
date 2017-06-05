@@ -98,6 +98,7 @@ int main(int argc, char *argv[]) {
     SubCallbacks subs;
 
     msp::client::Client client;
+    client.setPrintWarnings(true);
     client.connect(device, baudrate);
     client.start();
 
