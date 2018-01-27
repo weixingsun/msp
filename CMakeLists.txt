@@ -47,6 +47,9 @@ target_link_libraries(msp_fcu mspclient)
 add_executable(msp_connection_test examples/msp_connection_test.cpp)
 target_link_libraries(msp_connection_test msp)
 
+add_executable(msp_benchmark examples/msp_benchmark.cpp)
+target_link_libraries(msp_benchmark msp)
+
 # test and print all requests
 add_executable(msp_read_test examples/msp_read_test.cpp)
 target_link_libraries(msp_read_test msp msp_msg_print)
