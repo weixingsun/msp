@@ -323,7 +323,7 @@ private:
 
 private:
     // I/O
-    std::unique_ptr<SerialPortImpl> pimpl;
+    SerialPortImpl *pimpl;
     // threading
     std::thread thread;
     bool running;

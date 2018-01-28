@@ -58,6 +58,8 @@ Client::~Client() {
 
     for(const std::pair<msp::ID, SubscriptionBase*> s : subscriptions)
         delete s.second;
+
+    delete pimpl;
 }
 
 void Client::connect(const std::string &device, const size_t baudrate) {
@@ -93,14 +95,16 @@ uint8_t Client::read() {
 
 bool Client::sendData(const uint8_t id, const ByteVector &data) {
     std::lock_guard<std::mutex> lock(mutex_send);
-    ByteVector msg;
-    msg.push_back('$');                                 // preamble1
-    msg.push_back('M');                                 // preamble2
-    msg.push_back('<');                                 // direction
-    msg.push_back(uint8_t(data.size()));                // data size
-    msg.push_back(id);                                  // message_id
-    msg.insert(msg.end(), data.begin(), data.end());    // data
-    msg.push_back( crc(id, data) );                     // crc
+    ByteVector msg(6+data.size());
+    msg[0] = '$';
+    msg[1] = 'M';
+    msg[2] = '<';
+    msg[3] = uint8_t(data.size());
+    msg[4] = id;
+    for(size_t i(0); i<data.size(); i++) {
+        msg[5+i] = data[i];
+    }
+    msg[4+data.size()+1] = crc(id, data);
 
     asio::error_code ec;
     const std::size_t bytes_written = asio::write(pimpl->port, asio::buffer(msg.data(), msg.size()), ec);
@@ -177,7 +181,9 @@ bool Client::respond_raw(const uint8_t id, const ByteVector &data, const bool wa
 
 uint8_t Client::crc(const uint8_t id, const ByteVector &data) {
     uint8_t crc = uint8_t(data.size())^id;
-    for(const uint8_t d : data) { crc = crc^d; }
+    for(size_t i(0); i<data.size(); i++) {
+        crc = crc^data[i];
+    }
     return crc;
 }
 
@@ -209,9 +215,9 @@ void Client::processOneMessage() {
     }
 
     // payload
-    std::vector<uint8_t> data;
+    std::vector<uint8_t> data(len);
     for(size_t i(0); i<len; i++) {
-        data.push_back(read());
+        data[i] = read();
     }
 
     // CRC
