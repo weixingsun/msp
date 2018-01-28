@@ -29,6 +29,9 @@ include_directories(${MSP_INCLUDE_DIR})
 add_library(msp ${MSP_SOURCE_DIR}/MSP.cpp)
 target_link_libraries(msp ${CMAKE_THREAD_LIBS_INIT})
 
+add_library(msplight ${MSP_SOURCE_DIR}/MSPLight.cpp)
+target_link_libraries(msplight ${CMAKE_THREAD_LIBS_INIT})
+
 # printing message content
 add_library(msp_msg_print ${MSP_SOURCE_DIR}/msg_print.cpp)
 
@@ -50,6 +53,9 @@ target_link_libraries(msp_connection_test msp)
 
 add_executable(msp_benchmark examples/msp_benchmark.cpp)
 target_link_libraries(msp_benchmark msp -lboost_timer -lboost_system)
+
+add_executable(msplight_benchmark examples/msplight_benchmark.cpp)
+target_link_libraries(msplight_benchmark msplight -lboost_timer -lboost_system)
 
 # test and print all requests
 add_executable(msp_read_test examples/msp_read_test.cpp)

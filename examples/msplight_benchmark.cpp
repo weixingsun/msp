@@ -1,5 +1,4 @@
-#include <MSP.hpp>
-#include <msp_msg.hpp>
+#include <MSPLight.hpp>
 
 #include <chrono>
 #include <ctime>
@@ -10,13 +9,11 @@ int main(int argc, char *argv[]) {
     const std::string device = (argc>1) ? std::string(argv[1]) : "/dev/ttyUSB0";
     const size_t baudrate = (argc>2) ? std::stoul(argv[2]) : 115200;
 
-    msp::MSP msp(device, baudrate);
-    msp.setWait(1);
+    msp::MSPLight msp(device, baudrate);
 
     const int dur_wall_s = 10;
 
     unsigned int n_msg = 0;
-    msp::msg::ImuRaw imu;
 
     // cpu-time start
     const clock_t tstart_cpu = clock();
@@ -26,7 +23,14 @@ int main(int argc, char *argv[]) {
     boost::timer::auto_cpu_timer t;
 
     while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start).count() < dur_wall_s*1000) {
-        msp.request_block(imu);
+        msp.send(102);
+
+        // wait for response
+        std::vector<uint8_t> payload;
+        while(payload.size()==0) {
+            payload = msp.receive();
+        }
+
         n_msg++;
     }
 
