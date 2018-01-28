@@ -15,6 +15,7 @@ if(WIN32)
 endif()
 
 find_package(Threads)
+find_library(Boost REQUIRED system timer)
 
 set(MSP_SOURCE_DIR src)
 set(MSP_INCLUDE_DIR inc/msp)
@@ -48,7 +49,7 @@ add_executable(msp_connection_test examples/msp_connection_test.cpp)
 target_link_libraries(msp_connection_test msp)
 
 add_executable(msp_benchmark examples/msp_benchmark.cpp)
-target_link_libraries(msp_benchmark msp)
+target_link_libraries(msp_benchmark msp -lboost_timer -lboost_system)
 
 # test and print all requests
 add_executable(msp_read_test examples/msp_read_test.cpp)

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <ctime>
 #include <iostream>
+#include <boost/timer/timer.hpp>
 
 int main(int argc, char *argv[]) {
     const std::string device = (argc>1) ? std::string(argv[1]) : "/dev/ttyUSB0";
@@ -21,6 +22,8 @@ int main(int argc, char *argv[]) {
     const clock_t tstart_cpu = clock();
     // wall-time start
     const auto start = std::chrono::steady_clock::now();
+
+    boost::timer::auto_cpu_timer t;
 
     while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start).count() < dur_wall_s*1000) {
         msp.request_block(imu);
