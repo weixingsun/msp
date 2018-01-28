@@ -55,6 +55,9 @@ target_link_libraries(msp_read_test msp msp_msg_print)
 add_executable(fcu_test examples/fcu_test.cpp)
 target_link_libraries(fcu_test msp_fcu msp_msg_print)
 
+add_executable(fcu_benchmark examples/fcu_benchmark.cpp)
+target_link_libraries(fcu_benchmark msp_fcu -lboost_system -lboost_timer)
+
 # test arming and disarming
 add_executable(fcu_arm examples/fcu_arm_test.cpp)
 target_link_libraries(fcu_arm msp_fcu)
@@ -78,6 +81,12 @@ target_link_libraries(client_async_test mspclient msp_msg_print)
 # client test for blocking read
 add_executable(client_read_test examples/client_read_test.cpp)
 target_link_libraries(client_read_test mspclient msp_msg_print)
+
+add_executable(client_sync_benchmark examples/client_sync_benchmark.cpp)
+target_link_libraries(client_sync_benchmark mspclient -lboost_system -lboost_timer)
+
+add_executable(client_async_benchmark examples/client_async_benchmark.cpp)
+target_link_libraries(client_async_benchmark mspclient -lboost_system -lboost_timer)
 
 
 ################################################################################
