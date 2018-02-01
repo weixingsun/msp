@@ -95,19 +95,19 @@ bool Client::sendData(const uint8_t id, const ByteVector &data) {
     //std::lock_guard<std::mutex> lock(mutex_send);
 
     // concatenate header, payload and checksum
-    const size_t s = data.size();
-    const uint8_t c = crc(id, data);
-    const std::vector<asio::const_buffer> buf_msg = {
-        asio::buffer("$M<"),
-        asio::buffer(&s, 1),
-        asio::buffer(&id, 1),
-        asio::buffer(data),
-        asio::buffer(&c, 1)
-    };
+//    const uint8_t s = uint8_t(data.size());
+//    const uint8_t c = crc(id, data);
+//    const std::vector<asio::const_buffer> buf_msg = {
+//        asio::buffer("$M<"),
+//        asio::buffer(&s, 1),
+//        asio::buffer(&id, 1),
+//        asio::buffer(data),
+//        asio::buffer(&c, 1)
+//    };
 
-    asio::error_code ec;
-    asio::write(pimpl->port, buf_msg, ec);
-    if (ec == asio::error::operation_aborted) return false;
+//    asio::error_code ec;
+//    asio::write(pimpl->port, buf_msg, ec);
+//    if (ec == asio::error::operation_aborted) return false;
 
 //    asio::write(pimpl->port, asio::buffer("$M<"), ec);
 //    if (ec == asio::error::operation_aborted) return false;
@@ -127,24 +127,24 @@ bool Client::sendData(const uint8_t id, const ByteVector &data) {
 //    if (ec == asio::error::operation_aborted) return false;
 
 //    ///
-//    msg_out.resize(6+data.size());
-//    msg_out[0] = '$';                                 // preamble1
-//    msg_out[1] = 'M';                                 // preamble2
-//    msg_out[2] = '<';                                 // direction
-//    msg_out[3] = uint8_t(data.size());                // data size
-//    msg_out[4] = id;                                  // message_id
-//    msg_out.insert(msg.end(), data.begin(), data.end());    // data
-//    msg.push_back( crc(id, data) );                     // crc
+    msg_out.resize(6+data.size());
+    msg_out[0] = '$';                                 // preamble1
+    msg_out[1] = 'M';                                 // preamble2
+    msg_out[2] = '<';                                 // direction
+    msg_out[3] = uint8_t(data.size());                // data size
+    msg_out[4] = id;                                  // message_id
+    msg_out.insert(msg_out.begin()+5, data.begin(), data.end());    // data
+    msg_out[5+data.size()] = crc(id, data);                     // crc
 
-//    asio::error_code ec;
-//    const std::size_t bytes_written = asio::write(pimpl->port, asio::buffer(msg.data(), msg.size()), ec);
-//    if (ec == asio::error::operation_aborted) {
-//        //operation_aborted error probably means the client is being closed
-//        return false;
-//    }
+    asio::error_code ec;
+    const std::size_t bytes_written = asio::write(pimpl->port, asio::buffer(msg_out), ec);
+    if (ec == asio::error::operation_aborted) {
+        //operation_aborted error probably means the client is being closed
+        return false;
+    }
 
-//    return (bytes_written==msg.size());
-    return true;
+    return (bytes_written==msg_out.size());
+//    return true;
 }
 
 int Client::request(msp::Request &request, const double timeout) {

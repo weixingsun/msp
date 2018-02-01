@@ -342,6 +342,7 @@ private:
     std::map<msp::ID, msp::Request*> subscribed_requests;
     // debugging
     bool print_warnings;
+    ByteVector msg_out;
 };
 
 } // namespace client
