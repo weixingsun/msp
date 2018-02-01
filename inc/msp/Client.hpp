@@ -319,6 +319,7 @@ private:
      * @param data raw data vector
      * @return checksum
      */
+    static
     uint8_t crc(const uint8_t id, const ByteVector &data);
 
 private:
