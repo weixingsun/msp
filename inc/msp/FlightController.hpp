@@ -90,7 +90,10 @@ public:
     }
 
     bool request_raw(const uint8_t id, msp::ByteVector &data, const double timeout = 0) {
-        return client.request_raw(id, data, timeout);
+        //return client.request_raw(id, data, timeout);
+        //std::unique_ptr<msp::ByteVector>(&data);
+        data = *client.request_raw(id, timeout);
+        return true;
     }
 
     bool respond(const msp::Response &response, const bool wait_ack=true) {

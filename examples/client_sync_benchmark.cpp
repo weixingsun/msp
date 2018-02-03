@@ -25,9 +25,8 @@ int main(int argc, char *argv[]) {
     unsigned int n_msg = 0;
 
     while(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start).count() < dur_wall_s*1000) {
-        if(client.request(imu_raw)==1) {
-            n_msg++;
-        }
+        client.request_raw(uint8_t(msp::ID::MSP_RAW_IMU));
+        n_msg++;
     }
 
     const auto dur_cpu_s = float(clock()-tstart_cpu) / CLOCKS_PER_SEC;

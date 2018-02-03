@@ -7,6 +7,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <map>
+#include <memory>
 #include "types.hpp"
 
 namespace msp {
@@ -127,7 +128,8 @@ enum MessageStatus {
 
 struct ReceivedMessage {
     uint8_t id;
-    std::vector<uint8_t> data;
+    ByteVector data;
+//    std::uniqe_ptr<ByteVector> data_ptr;
     MessageStatus status;
 };
 
@@ -224,7 +226,7 @@ public:
      * @return 0 on failure
      * @return -1 on timeout
      */
-    int request_raw(const uint8_t id, ByteVector &data, const double timeout = 0);
+    std::unique_ptr<ByteVector> request_raw(const uint8_t id, const double timeout = 0);
 
     /**
      * @brief respond send payload to FC and block until an ACK has been received
@@ -343,7 +345,9 @@ private:
     std::map<msp::ID, msp::Request*> subscribed_requests;
     // debugging
     bool print_warnings;
+    // buffer
     ByteVector msg_out;
+//    ByteVector msg_in;
 };
 
 } // namespace client

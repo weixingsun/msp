@@ -50,7 +50,7 @@ void PeriodicTimer::setPeriod(const double period_seconds) {
 namespace msp {
 namespace client {
 
-Client::Client() : pimpl(new SerialPortImpl), running(false), print_warnings(false) { }
+Client::Client() : pimpl(new SerialPortImpl), running(false), request_received(new ReceivedMessage()), print_warnings(false) { }
 
 Client::~Client() {
     for(const std::pair<msp::ID, msp::Request*> d : subscribed_requests)
@@ -148,15 +148,24 @@ bool Client::sendData(const uint8_t id, const ByteVector &data) {
 }
 
 int Client::request(msp::Request &request, const double timeout) {
-    msp::ByteVector data;
-    const int success = request_raw(uint8_t(request.id()), data, timeout);
-    if(success==1) { request.decode(data); }
-    return success;
+//    msp::ByteVector data;
+    //const int success = request_raw(uint8_t(request.id()), data, timeout);
+    //data = request_raw(uint8_t(request.id()), timeout);
+    auto pp = request_raw(uint8_t(request.id()), timeout);
+    //request.decode(*request_raw(uint8_t(request.id()), timeout));
+    //request.decode(*pp);
+//    if(success==1) { request.decode(data); }
+//    return success;
+    return true;
 }
 
-int Client::request_raw(const uint8_t id, ByteVector &data, const double timeout) {
+std::unique_ptr<ByteVector> Client::request_raw(const uint8_t id, const double timeout) {
     // send request
-    if(!sendRequest(id)) { return false; }
+    if(!sendRequest(id)) {
+        //request_received->data.resize(0);
+        throw std::runtime_error("send fail");
+        //return std::unique_ptr<ByteVector>();
+    }
 
     // wait for thread to received message
     std::unique_lock<std::mutex> lock(mutex_cv_request);
@@ -170,17 +179,19 @@ int Client::request_raw(const uint8_t id, ByteVector &data, const double timeout
 
     if(timeout>0) {
         if(!cv_request.wait_for(lock, std::chrono::milliseconds(size_t(timeout*1e3)), predicate))
-            return -1;
+            throw std::runtime_error("timeout");
+            //return std::unique_ptr<ByteVector>();
     }
     else {
         cv_request.wait(lock, predicate);
     }
 
     // check message status and decode
-    const bool success = request_received->status==OK;
-    if(success) { data = request_received->data; }
-    mutex_request.unlock();
-    return success;
+//    const bool success = request_received->status==OK;
+//    if(success) { data = request_received->data; }
+//    mutex_request.unlock();
+//    return success;
+    return std::unique_ptr<ByteVector>(&request_received->data);
 }
 
 bool Client::respond(const msp::Response &response, const bool wait_ack) {
@@ -227,6 +238,8 @@ void Client::processOneMessage() {
     // ignore and remove header bytes
     pimpl->buffer.consume(bytes_transferred);
 
+    //dynamic_cast<std::stringbuf>(pimpl->buffer)
+
     MessageStatus status = OK;
 
     // message direction
@@ -244,14 +257,16 @@ void Client::processOneMessage() {
     }
 
     // payload
-    std::vector<uint8_t> data;
+    //std::vector<uint8_t> data;
+    request_received->data.resize(len);
     for(size_t i(0); i<len; i++) {
-        data.push_back(read());
+        //data.push_back(read());
+        request_received->data[i] = read();
     }
 
     // CRC
     const uint8_t rcv_crc = read();
-    const uint8_t exp_crc = crc(id,data);
+    const uint8_t exp_crc = crc(id, request_received->data);
     const bool ok_crc = (rcv_crc==exp_crc);
 
     if(print_warnings && !ok_crc) {
@@ -262,9 +277,10 @@ void Client::processOneMessage() {
     else if(!ok_crc) { status = FAIL_CRC; }
 
     mutex_request.lock();
-    request_received.reset(new ReceivedMessage());
+    //request_received.reset(new ReceivedMessage());
     request_received->id = id;
-    request_received->data = data;
+    //request_received->data = data;
+    //request_received->data.swap(msg_in);
     request_received->status = status;
     mutex_request.unlock();
 
@@ -278,7 +294,7 @@ void Client::processOneMessage() {
     if(status==OK && subscriptions.count(ID(id))) {
         // fetch message type, decode payload
         msp::Request *const req = subscribed_requests.at(ID(id));
-        req->decode(data);
+        req->decode(request_received->data);
         // call callback
         subscriptions.at(ID(id))->call(*req);
     }
