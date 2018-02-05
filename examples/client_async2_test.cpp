@@ -15,13 +15,13 @@ int main(int argc, char *argv[]) {
 //        std::cout << "got " << payload.size() << " bytes" << std::endl;
 //    });
 
-//    client.async_request<msp::msg::ImuRaw>([](const msp::msg::ImuRaw &imu){
-//        std::cout << imu << std::endl;
-//    });
-
-    client.async_request<msp::msg::ApiVersion>([](const msp::msg::ApiVersion &imu){
+    client.async_request<msp::msg::ImuRaw>([](const msp::msg::ImuRaw &imu){
         std::cout << imu << std::endl;
     });
+
+//    client.async_request<msp::msg::ApiVersion>([](const msp::msg::ApiVersion &imu){
+//        std::cout << imu << std::endl;
+//    });
 
     client.run();
 

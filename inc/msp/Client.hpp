@@ -134,6 +134,8 @@ struct ReceivedMessage {
 
 class Client {
 public:
+    typedef std::function<void(const ByteVector&)> CallbackRaw;
+
     Client();
 
     ~Client();
@@ -231,16 +233,14 @@ public:
 
     template<typename T>
     int async_request(const std::function<void(const T&)> &callback, const bool wait_response = true) {
-//        async_request_raw(uint8_t(T().id()), ByteVector(), wait_response,
-//        [&callback](const ByteVector& payload){
-//            std::cout << "decoding " << payload.size() << " bytes" << std::endl;
-//            T request;
-//            request.decode(payload);
-//            // call the user supplied callback
-//            callback(request);
-//        });
-
-        async_request_raw(uint8_t(T().id()), ByteVector(), wait_response);
+        async_request_raw(uint8_t(T().id()), ByteVector(), wait_response, std::make_shared<CallbackRaw>(
+        [&callback](const ByteVector& payload){
+            std::cout << "decoding " << payload.size() << " bytes" << std::endl;
+            T request;
+            request.decode(payload);
+            // call the user supplied callback
+            callback(request);
+        }));
 
         return 0;
     }
@@ -254,7 +254,7 @@ public:
 
     int async_request_raw(const uint8_t id, const ByteVector &data = ByteVector(),
                           const bool wait_response = true,
-                          const std::function<void(const ByteVector&)> &callback = std::function<void(const ByteVector&)>());
+                          const std::shared_ptr<const CallbackRaw> callback = nullptr);
 
     /**
      * @brief respond send payload to FC and block until an ACK has been received

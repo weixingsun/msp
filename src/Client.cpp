@@ -181,7 +181,7 @@ bool Client::respond_raw(const uint8_t id, const ByteVector &data, const bool wa
 
 int Client::async_request_raw(const uint8_t id, const ByteVector &data,
                               const bool wait_response,
-                              const std::function<void(const ByteVector&)> &callback)
+                              const std::shared_ptr<const CallbackRaw> callback)
 {
     msg_out.resize(6+data.size());
     msg_out[0] = '$';
@@ -201,7 +201,7 @@ int Client::async_request_raw(const uint8_t id, const ByteVector &data,
     std::cout << std::endl;
 
     asio::async_write(pimpl->port, asio::buffer(msg_out),
-    [this,&callback,wait_response](const asio::error_code& ec, std::size_t bt){
+    [this,id,callback,wait_response](const asio::error_code& ec, std::size_t bt){
         if(!wait_response)
             return;
 
@@ -220,12 +220,14 @@ int Client::async_request_raw(const uint8_t id, const ByteVector &data,
         if(msg_in[2]!='>')
             return;
         const uint8_t s = msg_in[3];
-        const uint8_t id = msg_in[4];
+        const uint8_t id_rcv = msg_in[4];
+        if(id!=id_rcv)
+            return;
 
         // read payload + crc
         msg_in.resize(s+1);
         asio::async_read(pimpl->port, asio::buffer(msg_in),
-        [this,id,&callback](const asio::error_code& ec, std::size_t bt){
+        [this,id,callback](const asio::error_code& ec, std::size_t bt){
             const uint8_t cc = msg_in.back();
             msg_in.pop_back();
             const uint8_t cc_exp = crc(id, msg_in);
@@ -243,7 +245,10 @@ int Client::async_request_raw(const uint8_t id, const ByteVector &data,
 
             if(callback) {
                 std::cout << "calling callback with " << msg_in.size() << " bytes of payload" << std::endl;
-                callback(msg_in);
+                (*callback)(msg_in);
+            }
+            else {
+                std::cout << "no callback" << std::endl;
             }
         });
     });
