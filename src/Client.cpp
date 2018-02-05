@@ -76,6 +76,10 @@ void Client::start() {
     });
 }
 
+void Client::run() {
+    pimpl->io.run();
+}
+
 void Client::stop() {
     running = false;
     pimpl->io.stop();
@@ -173,6 +177,78 @@ bool Client::respond_raw(const uint8_t id, const ByteVector &data, const bool wa
     const bool success = request_received->status==OK;
     mutex_request.unlock();
     return success;
+}
+
+int Client::async_request_raw(const uint8_t id, const ByteVector &data,
+                              const bool wait_response,
+                              const std::function<void(const ByteVector&)> &callback)
+{
+    msg_out.resize(6+data.size());
+    msg_out[0] = '$';
+    msg_out[1] = 'M';
+    msg_out[2] = '<';
+    msg_out[3] = uint8_t(data.size());
+    msg_out[4] = id;
+    //std::move(data.begin(), data.end(), std::back_inserter(msg_out));
+    std::move(data.begin(), data.end(), msg_out.data()+5);
+    //std::swap_ranges(foo.begin()+1, foo.end()-1, bar.begin());
+    msg_out[4+data.size()+1] = crc(id, data);
+
+    std::cout << "sending: ";
+    for(const uint8_t &b : msg_out) {
+        std::cout << uint(b) << ",";
+    }
+    std::cout << std::endl;
+
+    asio::async_write(pimpl->port, asio::buffer(msg_out),
+    [this,&callback,wait_response](const asio::error_code& ec, std::size_t bt){
+        if(!wait_response)
+            return;
+
+        // read header
+        msg_in.resize(5);
+        asio::read(pimpl->port, asio::buffer(msg_in));
+
+        std::cout << "received header: ";
+        for(const uint8_t &b : msg_in) {
+            std::cout << uint(b) << ",";
+        }
+        std::cout << std::endl;
+
+        if(msg_in[0] != '$' || msg_in[1] != 'M')
+            return;
+        if(msg_in[2]!='>')
+            return;
+        const uint8_t s = msg_in[3];
+        const uint8_t id = msg_in[4];
+
+        // read payload + crc
+        msg_in.resize(s+1);
+        asio::async_read(pimpl->port, asio::buffer(msg_in),
+        [this,id,&callback](const asio::error_code& ec, std::size_t bt){
+            const uint8_t cc = msg_in.back();
+            msg_in.pop_back();
+            const uint8_t cc_exp = crc(id, msg_in);
+            if(cc!=cc_exp) {
+                std::cout << "wrong CRC" << std::endl;
+                std::cout << "expected: " << uint(cc_exp) << ", received: " << uint(cc) << std::endl;
+                return;
+            }
+            // msg_in is payload
+            std::cout << "received payload (" << msg_in.size() << "): ";
+            for(const uint8_t &b : msg_in) {
+                std::cout << uint(b) << ",";
+            }
+            std::cout << std::endl;
+
+            if(callback) {
+                std::cout << "calling callback with " << msg_in.size() << " bytes of payload" << std::endl;
+                callback(msg_in);
+            }
+        });
+    });
+
+    return 0;
 }
 
 uint8_t Client::crc(const uint8_t id, const ByteVector &data) {

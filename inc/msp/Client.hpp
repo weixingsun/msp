@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <map>
 #include "types.hpp"
+#include <iostream>
 
 namespace msp {
 
@@ -161,6 +162,8 @@ public:
      */
     void start();
 
+    void run();
+
     /**
      * @brief stop stops the receiver thread
      */
@@ -225,6 +228,33 @@ public:
      * @return -1 on timeout
      */
     int request_raw(const uint8_t id, ByteVector &data, const double timeout = 0);
+
+    template<typename T>
+    int async_request(const std::function<void(const T&)> &callback, const bool wait_response = true) {
+//        async_request_raw(uint8_t(T().id()), ByteVector(), wait_response,
+//        [&callback](const ByteVector& payload){
+//            std::cout << "decoding " << payload.size() << " bytes" << std::endl;
+//            T request;
+//            request.decode(payload);
+//            // call the user supplied callback
+//            callback(request);
+//        });
+
+        async_request_raw(uint8_t(T().id()), ByteVector(), wait_response);
+
+        return 0;
+    }
+
+    template<typename T>
+    int async_respond(const msp::Response &response, const bool wait_response = true) {
+        const ByteVector payload = response.encode();
+        async_request_raw(uint8_t(response.id()), payload, wait_response);
+        return 0;
+    }
+
+    int async_request_raw(const uint8_t id, const ByteVector &data = ByteVector(),
+                          const bool wait_response = true,
+                          const std::function<void(const ByteVector&)> &callback = std::function<void(const ByteVector&)>());
 
     /**
      * @brief respond send payload to FC and block until an ACK has been received
@@ -342,6 +372,9 @@ private:
     std::map<msp::ID, msp::Request*> subscribed_requests;
     // debugging
     bool print_warnings;
+    // buffer
+    ByteVector msg_out;
+    ByteVector msg_in;
 };
 
 } // namespace client

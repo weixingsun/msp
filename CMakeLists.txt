@@ -79,6 +79,10 @@ target_link_libraries(client_async_test mspclient msp_msg_print)
 add_executable(client_read_test examples/client_read_test.cpp)
 target_link_libraries(client_read_test mspclient msp_msg_print)
 
+# client test for async read
+add_executable(client_async2_test examples/client_async2_test.cpp)
+target_link_libraries(client_async2_test mspclient msp_msg_print)
+
 
 ################################################################################
 ### installation
