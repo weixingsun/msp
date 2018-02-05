@@ -9,6 +9,9 @@ int main(int argc, char *argv[]) {
 
     msp::client::Client client;
     client.connect(device, baudrate);
+    //client.start2();
+    //std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    //client.run();
 
 //    client.async_request_raw(uint8_t(msp::ID::MSP_RAW_IMU), msp::ByteVector(), true,
 //    [](const msp::ByteVector &payload){
@@ -19,11 +22,12 @@ int main(int argc, char *argv[]) {
         std::cout << imu << std::endl;
     });
 
-//    client.async_request<msp::msg::ApiVersion>([](const msp::msg::ApiVersion &imu){
-//        std::cout << imu << std::endl;
-//    });
+    client.async_request<msp::msg::ApiVersion>([](const msp::msg::ApiVersion &api){
+        std::cout << api << std::endl;
+    });
 
     client.run();
+//    client.start2();
 
-    //std::this_thread::sleep_for(std::chrono::seconds(10));
+//    std::this_thread::sleep_for(std::chrono::seconds(10));
 }
