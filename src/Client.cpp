@@ -72,9 +72,19 @@ void Client::connect(const std::string &device, const size_t baudrate) {
 void Client::start2() {
     thread_iorun = std::thread([this](){
         io_running = true;
-        std::cout << "thread start" << std::endl;
+        std::cout << "thread started" << std::endl;
+//        uint ncycles = 0;
         while(io_running) {
-            pimpl->io.run();
+            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            const size_t s = pimpl->io.run();
+//            const size_t s = pimpl->io.run_one();
+//            const size_t s = pimpl->io.poll();
+//            ncycles++;
+            //std::cout << "cycle " << ncycles << std::endl;
+            //std::cout << "running " << io_running << std::endl;
+//            if(s>0) {
+//                std::cout << "s " << s << std::endl;
+//            }
         }
         std::cout << "thread exit" << std::endl;
     });
@@ -96,6 +106,14 @@ void Client::stop() {
     pimpl->io.stop();
     pimpl->port.close();
     thread.join();
+}
+
+void Client::stop2() {
+    pimpl->port.cancel();
+    io_running = false;
+    pimpl->io.stop();
+    thread_iorun.join();
+    pimpl->port.close();
 }
 
 uint8_t Client::read() {
@@ -260,36 +278,9 @@ int Client::async_request_raw(const uint8_t id, const ByteVector &data,
         else {
             std::cout << "no callback" << std::endl;
         }
-
-//        asio::async_read(pimpl->port, asio::buffer(msg_in),
-//        [this,id,callback](const asio::error_code& ec, std::size_t bt){
-//            const uint8_t cc = msg_in.back();
-//            msg_in.pop_back();
-
-//            std::cout << "received payload (" << msg_in.size() << "): ";
-//            for(const uint8_t &b : msg_in) {
-//                std::cout << uint(b) << ",";
-//            }
-//            std::cout << std::endl;
-//            std::cout << "received CRC: " << uint(cc) << std::endl;
-
-//            const uint8_t cc_exp = crc(id, msg_in);
-//            if(cc!=cc_exp) {
-//                std::cout << "wrong CRC" << std::endl;
-//                std::cout << "expected: " << uint(cc_exp) << ", received: " << uint(cc) << std::endl;
-//                return;
-//            }
-//            // msg_in is payload
-//            if(callback) {
-//                std::cout << "calling callback with " << msg_in.size() << " bytes of payload" << std::endl;
-//                (*callback)(msg_in);
-//            }
-//            else {
-//                std::cout << "no callback" << std::endl;
-//            }
-//        });
     });
 
+//    pimpl->io.poll();
     return 0;
 }
 

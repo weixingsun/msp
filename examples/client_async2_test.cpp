@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
 
     msp::client::Client client;
     client.connect(device, baudrate);
-    //client.start2();
+    client.start2();
     //std::this_thread::sleep_for(std::chrono::milliseconds(10));
     //client.run();
 
@@ -26,8 +26,12 @@ int main(int argc, char *argv[]) {
         std::cout << api << std::endl;
     });
 
-    client.run();
+//    client.run();
 //    client.start2();
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+//    std::this_thread::sleep_for(std::chrono::seconds(10));
+
+    client.stop2();
 
 //    std::this_thread::sleep_for(std::chrono::seconds(10));
 }
