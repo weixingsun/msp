@@ -73,14 +73,17 @@ void Client::start2() {
     thread_iorun = std::thread([this](){
         io_running = true;
         std::cout << "thread started" << std::endl;
-//        uint ncycles = 0;
+        uint ncycles = 0;
         while(io_running) {
-            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+//            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+//            pimpl->io.reset();
+            const bool ss = pimpl->io.stopped();
+            std::cout << "stopped: " << ss << std::endl;
             const size_t s = pimpl->io.run();
 //            const size_t s = pimpl->io.run_one();
 //            const size_t s = pimpl->io.poll();
-//            ncycles++;
-            //std::cout << "cycle " << ncycles << std::endl;
+            ncycles++;
+            std::cout << "cycle " << ncycles << std::endl;
             //std::cout << "running " << io_running << std::endl;
 //            if(s>0) {
 //                std::cout << "s " << s << std::endl;
@@ -101,6 +104,10 @@ void Client::run() {
     pimpl->io.run();
 }
 
+asio::io_service& Client::io() {
+    return pimpl->io;
+}
+
 void Client::stop() {
     running = false;
     pimpl->io.stop();
@@ -112,8 +119,9 @@ void Client::stop2() {
     pimpl->port.cancel();
     io_running = false;
     pimpl->io.stop();
-    thread_iorun.join();
     pimpl->port.close();
+    //thread_iorun.join();
+    thread_iorun.detach();
 }
 
 uint8_t Client::read() {
@@ -221,11 +229,11 @@ int Client::async_request_raw(const uint8_t id, const ByteVector &data,
     std::move(data.begin(), data.end(), msg_out.data()+5);
     msg_out[4+data.size()+1] = crc(id, data);
 
-    std::cout << "sending: ";
-    for(const uint8_t &b : msg_out) {
-        std::cout << uint(b) << ",";
-    }
-    std::cout << std::endl;
+//    std::cout << "sending: ";
+//    for(const uint8_t &b : msg_out) {
+//        std::cout << uint(b) << ",";
+//    }
+//    std::cout << std::endl;
 
     asio::async_write(pimpl->port, asio::buffer(msg_out),
     [this,id,callback,wait_response](const asio::error_code& ec, std::size_t bt){
@@ -236,11 +244,11 @@ int Client::async_request_raw(const uint8_t id, const ByteVector &data,
         msg_in.resize(5);
         asio::read(pimpl->port, asio::buffer(msg_in));
 
-        std::cout << "received header: ";
-        for(const uint8_t &b : msg_in) {
-            std::cout << uint(b) << ",";
-        }
-        std::cout << std::endl;
+//        std::cout << "received header: ";
+//        for(const uint8_t &b : msg_in) {
+//            std::cout << uint(b) << ",";
+//        }
+//        std::cout << std::endl;
 
         if(msg_in[0] != '$' || msg_in[1] != 'M')
             return;
@@ -257,12 +265,12 @@ int Client::async_request_raw(const uint8_t id, const ByteVector &data,
         const uint8_t cc = msg_in.back();
         msg_in.pop_back();
 
-        std::cout << "received payload (" << msg_in.size() << "): ";
-        for(const uint8_t &b : msg_in) {
-            std::cout << uint(b) << ",";
-        }
-        std::cout << std::endl;
-        std::cout << "received CRC: " << uint(cc) << std::endl;
+//        std::cout << "received payload (" << msg_in.size() << "): ";
+//        for(const uint8_t &b : msg_in) {
+//            std::cout << uint(b) << ",";
+//        }
+//        std::cout << std::endl;
+//        std::cout << "received CRC: " << uint(cc) << std::endl;
 
         const uint8_t cc_exp = crc(id, msg_in);
         if(cc!=cc_exp) {
@@ -272,12 +280,12 @@ int Client::async_request_raw(const uint8_t id, const ByteVector &data,
         }
         // msg_in is payload
         if(callback) {
-            std::cout << "calling callback with " << msg_in.size() << " bytes of payload" << std::endl;
+//            std::cout << "calling callback with " << msg_in.size() << " bytes of payload" << std::endl;
             (*callback)(msg_in);
         }
-        else {
-            std::cout << "no callback" << std::endl;
-        }
+//        else {
+//            std::cout << "no callback" << std::endl;
+//        }
     });
 
 //    pimpl->io.poll();

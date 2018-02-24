@@ -11,6 +11,8 @@
 #include <iostream>
 #include <atomic>
 
+#include <asio.hpp>
+
 namespace msp {
 
 struct SerialPortImpl;
@@ -141,6 +143,8 @@ public:
 
     ~Client();
 
+    asio::io_service& io();
+
     void setPrintWarnings(const bool warnings) {
         print_warnings = warnings;
     }
@@ -241,7 +245,7 @@ public:
         async_request_raw(uint8_t(T().id()), ByteVector(), wait_response, std::make_shared<CallbackRaw>(
         [callback](const ByteVector& payload){
             T request;
-            std::cout << "msg id " << uint(request.id()) << ", decoding " << payload.size() << " bytes" << std::endl;
+//            std::cout << "msg id " << uint(request.id()) << ", decoding " << payload.size() << " bytes" << std::endl;
             request.decode(payload);
             // call the user supplied callback
             callback(request);

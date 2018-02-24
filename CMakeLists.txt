@@ -81,7 +81,7 @@ target_link_libraries(client_read_test mspclient msp_msg_print)
 
 # client test for async read
 add_executable(client_async2_test examples/client_async2_test.cpp)
-target_link_libraries(client_async2_test mspclient msp_msg_print)
+target_link_libraries(client_async2_test mspclient msp_msg_print -lboost_system -lboost_timer)
 
 
 ################################################################################
