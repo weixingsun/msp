@@ -35,6 +35,10 @@ add_library(msp_msg_print ${MSP_SOURCE_DIR}/msg_print.cpp)
 add_library(mspclient ${MSP_SOURCE_DIR}/Client.cpp)
 target_link_libraries(mspclient ${CMAKE_THREAD_LIBS_INIT})
 
+# client2 library
+add_library(mspclient2 ${MSP_SOURCE_DIR}/Client2.cpp)
+target_link_libraries(mspclient2 ${CMAKE_THREAD_LIBS_INIT})
+
 # high-level API
 add_library(msp_fcu ${MSP_SOURCE_DIR}/FlightController.cpp)
 target_link_libraries(msp_fcu mspclient)
@@ -78,6 +82,10 @@ target_link_libraries(client_async_test mspclient msp_msg_print)
 # client test for blocking read
 add_executable(client_read_test examples/client_read_test.cpp)
 target_link_libraries(client_read_test mspclient msp_msg_print)
+
+# client2 test for blocking read
+add_executable(client2_read_test examples/client2_read_test.cpp)
+target_link_libraries(client2_read_test mspclient2 msp_msg_print)
 
 
 ################################################################################

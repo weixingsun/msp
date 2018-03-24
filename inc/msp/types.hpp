@@ -16,6 +16,11 @@ typedef std::vector<uint8_t> ByteVector;
 /////////////////////////////////////////////////////////////////////
 /// Generic message types
 
+struct RawMessage {
+    uint8_t id;
+    ByteVector data;
+};
+
 struct Message {
     virtual ID id() const = 0;
 
