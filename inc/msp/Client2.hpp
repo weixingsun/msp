@@ -24,29 +24,27 @@ public:
 
     void stop();
 
-    void send(const Response &response, const bool wait_ack=true, const std::function<void(const msp::ID&)> &callback = nullptr) {
+    void send(const Response &response, const bool wait_ack=true, const std::function<void(msp::ID)> &callback = nullptr);
 
+    void send(const RawMessage &msg, const bool wait_ack=true, const std::function<void(const RawMessage&)> &callback = nullptr);
+
+    const ByteVector& receive(ID id, const double timeout = 0);
+
+    template<typename M>
+    const std::shared_ptr<M> receive(const double timeout = 0) {
+        std::shared_ptr<M> m(new M());
+        const ByteVector& data = receive(m->id(), timeout);
+        m->decode(data);
+        return m;
     }
 
-    void send(const RawMessage &response, const bool wait_ack=true, const std::function<void(const RawMessage&)> &callback = nullptr);
-
-    template<typename T>
-    void receive(Request &request, const double timeout = 0, const std::function<void(const T&)> &callback = nullptr) {
-
-    }
-
-    void receive(RawMessage &request, const double timeout = 0, const std::function<void(const RawMessage&)> &callback = nullptr);
-
-    template<typename T>
-    T receive(msp::ID &id, const double timeout = 0, const std::function<void(const T&)> &callback = nullptr) {
-
-    }
-
-    ByteVector receive(ID &id, const double timeout = 0);
+    static uint8_t crc(const uint8_t id, const ByteVector& data);
 
 private:
+    void write(const uint8_t id, const ByteVector& data = ByteVector());
 
-// members
+    const ByteVector &read();
+
 private:
     // I/O
     std::unique_ptr<SerialPortImpl> port;
