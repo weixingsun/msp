@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
     msp::client2::Client client;
 //    client.setPrintWarnings(true);
     client.connect(device, baudrate);
-//    client.start();
+    client.start();
 
 //    msp::msg::Ident ident;
 //    if(client.request(ident)==1)
@@ -22,8 +22,16 @@ int main(int argc, char *argv[]) {
 //    msp::msg::Ident ident;
 //    const msp::ByteVector& pl = client.receive(msp::ID::MSP_API_VERSION);
 
-    auto p = client.receive<msp::msg::ApiVersion>();
-    std::cout << *p << std::endl;
+//    auto p = client.receive<msp::msg::ApiVersion>();
+//    std::cout << *p << std::endl;
+
+    client.receive<msp::msg::ApiVersion>(
+    [](const msp::msg::ApiVersion& api){
+        std::cout << api << std::endl;
+    }
+    );
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
 //    msp::msg::ApiVersion p = client.receive();
 
@@ -145,5 +153,5 @@ int main(int argc, char *argv[]) {
 //    else
 //        std::cerr<<"unsupported: "<< size_t(debug.id())<<std::endl;
 
-//    client.stop();
+    client.stop();
 }

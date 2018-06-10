@@ -8,7 +8,8 @@ namespace client2 {
 
 struct SerialPortImpl {
     SerialPortImpl() : port(io) {
-        payload.reserve(256); // MSPv1
+        msg_in.data.resize(256);
+//        payload.reserve(256); // MSPv1
     }
 
     asio::io_service io;     ///<! io service
@@ -27,7 +28,8 @@ struct SerialPortImpl {
         } header;
     } header;
 
-    ByteVector payload;
+//    ByteVector payload;
+    RawMessage msg_in;
 
 //    // MSPv2 header
 //    union Hv2 {
@@ -72,9 +74,9 @@ void Client::send(const RawMessage &msg, const bool wait_ack, const std::functio
 const ByteVector& Client::receive(ID id, const double timeout) {
     write(uint8_t(id));
 
-    const ByteVector& data = read();
+    const RawMessage& msg = read();
 
-    return data;
+    return msg.data;
 }
 
 void Client::write(const uint8_t id, const ByteVector& data) {
@@ -85,13 +87,15 @@ void Client::write(const uint8_t id, const ByteVector& data) {
     asio::write(port->port, asio::buffer({crc(id, data)}));
 }
 
-const ByteVector& Client::read() {
+const RawMessage& Client::read() {
     asio::read(port->port, asio::buffer(port->header.data));
 
-    port->payload.resize(port->header.header.size);
-    asio::read(port->port, asio::buffer(port->payload));
+    port->msg_in.id = port->header.header.id;
 
-    return port->payload;
+    port->msg_in.data.resize(port->header.header.size);
+    asio::read(port->port, asio::buffer(port->msg_in.data));
+
+    return port->msg_in;
 }
 
 uint8_t Client::crc(const uint8_t id, const ByteVector& data) {
