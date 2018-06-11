@@ -44,7 +44,10 @@ struct SerialPortImpl {
 //    };
 };
 
-Client::Client() : port(new SerialPortImpl) { }
+Client::Client() : port(new SerialPortImpl) {
+    next_req.setMaximumSize(100);
+    next_cb.setMaximumSize(100);
+}
 
 Client::~Client() {
     disconnect();
@@ -84,8 +87,8 @@ void Client::start() {
                 // call callback with raw data
                 static_cast<Callback<ByteVector>&>(*next_cb.front()).callback(msg.data);
             }
-            next_req.pop();
-            next_cb.pop();
+            next_req.remove();
+            next_cb.remove();
         }
     });
 }

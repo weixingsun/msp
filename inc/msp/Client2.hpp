@@ -37,6 +37,44 @@ public:
     std::function<void(const T&)> callback;
 };
 
+template <typename T>
+class Queue {
+public:
+    Queue(std::size_t size = 0) : max_size(size) { }
+
+    const T & front() {
+        return queue.front();
+    }
+
+    const T & back() {
+        return queue.back();
+    }
+
+    void insert(const T & v) {
+        // remove the oldest element to fit maximum size
+        if(max_size && queue.size()>max_size) {
+            queue.pop();
+        }
+        queue.push(v);
+    }
+
+    void remove() {
+        queue.pop();
+    }
+
+    void setMaximumSize(const std::size_t max_size) {
+        // remove oldest elements to fit maximum size
+        while(queue.size()>max_size) {
+            queue.pop();
+        }
+        this->max_size = max_size;
+    }
+
+private:
+    std::queue<T> queue;
+    std::size_t max_size;
+};
+
 class Client {
 public:
     Client();
@@ -58,8 +96,8 @@ public:
         // set callback and allocate memory for type
 //        next_cb = std::make_shared<Callback<T>>(callback);
 //        next_req = std::make_shared<T>();
-        next_cb.push(std::make_shared<Callback<T>>(callback));
-        next_req.push(std::make_shared<T>());
+        next_cb.insert(std::make_shared<Callback<T>>(callback));
+        next_req.insert(std::make_shared<T>());
         write(uint8_t(next_req.back()->id()));
     }
 
@@ -67,8 +105,8 @@ public:
         // set callback and allocate memory for type
 //        next_cb = std::make_shared<Callback<ByteVector>>(callback);
 //        next_req = nullptr;
-        next_cb.push(std::make_shared<Callback<ByteVector>>(callback));
-        next_req.push(nullptr);
+        next_cb.insert(std::make_shared<Callback<ByteVector>>(callback));
+        next_req.insert(nullptr);
         write(id);
     }
 
@@ -101,8 +139,10 @@ private:
 //    std::shared_ptr<Request> next_req;
 //    std::shared_ptr<CallbackBase> next_cb;
 
-    std::queue<std::shared_ptr<Request>> next_req;
-    std::queue<std::shared_ptr<CallbackBase>> next_cb;
+//    std::queue<std::shared_ptr<Request>> next_req;
+//    std::queue<std::shared_ptr<CallbackBase>> next_cb;
+    Queue<std::shared_ptr<Request>> next_req;
+    Queue<std::shared_ptr<CallbackBase>> next_cb;
 };
 
 } // namespace client
