@@ -5,6 +5,7 @@
 #include <types.hpp>
 #include <thread>
 #include <atomic>
+#include <queue>
 
 #include <iostream>
 
@@ -29,16 +30,14 @@ public:
 
     Callback(const callback_t &cb) : callback(cb) { }
 
-    void call(const msp::Request &req) {
+    void call(const Request &req) {
         callback(dynamic_cast<const T&>(req));
     }
 
-private:
     std::function<void(const T&)> callback;
 };
 
 class Client {
-// methods
 public:
     Client();
 
@@ -47,23 +46,6 @@ public:
     void connect(const std::string &device, const size_t baudrate=115200);
 
     void disconnect();
-
-    void start() {
-        reader = std::thread([this]{
-            running = true;
-            while(running) {
-                const RawMessage& msg = read();
-                std::cout << "addr: " << &msg.data[0] << std::endl;
-                std::cout << "got: " << uint(msg.id) << " " << uint(msg.data.size()) << std::endl;
-                next_req->decode(msg.data);
-                next_cb->call(*next_req);
-            }
-        });
-    }
-
-    void stop() {
-        running = false;
-    }
 
     void send(const Response &response, const bool wait_ack=true, const std::function<void(msp::ID)> &callback = nullptr);
 
@@ -74,9 +56,20 @@ public:
     template<typename T>
     void receive(const std::function<void(const T&)> &callback) {
         // set callback and allocate memory for type
-        next_cb = std::make_shared<Callback<T>>(callback);
-        next_req = std::make_shared<T>();
-        write(uint8_t(next_req->id()));
+//        next_cb = std::make_shared<Callback<T>>(callback);
+//        next_req = std::make_shared<T>();
+        next_cb.push(std::make_shared<Callback<T>>(callback));
+        next_req.push(std::make_shared<T>());
+        write(uint8_t(next_req.back()->id()));
+    }
+
+    void receive(const uint8_t id, const std::function<void(const ByteVector&)> &callback) {
+        // set callback and allocate memory for type
+//        next_cb = std::make_shared<Callback<ByteVector>>(callback);
+//        next_req = nullptr;
+        next_cb.push(std::make_shared<Callback<ByteVector>>(callback));
+        next_req.push(nullptr);
+        write(id);
     }
 
     template<typename M>
@@ -90,6 +83,10 @@ public:
     static uint8_t crc(const uint8_t id, const ByteVector& data);
 
 private:
+    void start();
+
+    void stop();
+
     void write(const uint8_t id, const ByteVector& data = ByteVector());
 
     const RawMessage& read();
@@ -101,9 +98,11 @@ private:
     std::thread reader;
     std::atomic_bool running;
 
-    std::shared_ptr<Request> next_req;
-    //std::shared_ptr<const std::function<void(const std::shared_ptr<const Request>)> > next_cb;
-    std::shared_ptr<CallbackBase> next_cb;
+//    std::shared_ptr<Request> next_req;
+//    std::shared_ptr<CallbackBase> next_cb;
+
+    std::queue<std::shared_ptr<Request>> next_req;
+    std::queue<std::shared_ptr<CallbackBase>> next_cb;
 };
 
 } // namespace client

@@ -46,7 +46,9 @@ struct SerialPortImpl {
 
 Client::Client() : port(new SerialPortImpl) { }
 
-Client::~Client() { }
+Client::~Client() {
+    disconnect();
+}
 
 void Client::connect(const std::string &device, const size_t baudrate) {
     port->port.open(device);
@@ -55,13 +57,42 @@ void Client::connect(const std::string &device, const size_t baudrate) {
     port->port.set_option(asio::serial_port::parity(asio::serial_port::parity::none));
     port->port.set_option(asio::serial_port::character_size(asio::serial_port::character_size(8)));
     port->port.set_option(asio::serial_port::stop_bits(asio::serial_port::stop_bits::one));
+
+    start();
 }
 
-void Client::disconnect() { }
+void Client::disconnect() {
+    stop();
+    port->port.close();
+}
 
-//void Client::start() { }
+void Client::start() {
+    reader = std::thread([this]{
+        running = true;
+        while(running) {
+            const RawMessage& msg = read();
+            //std::cout << "addr: " << &msg.data[0] << std::endl;
+            std::cout << "got: " << uint(msg.id) << " " << uint(msg.data.size()) << std::endl;
+            if(next_req.front()) {
+                // decode and call callback
+                next_req.front()->decode(msg.data);
+                next_cb.front()->call(*next_req.front());
+                //next_cb->call(*(next_req.front()->get()));
+            }
+            else {
+                std::cout << "raw msg" << std::endl;
+                // call callback with raw data
+                static_cast<Callback<ByteVector>&>(*next_cb.front()).callback(msg.data);
+            }
+            next_req.pop();
+            next_cb.pop();
+        }
+    });
+}
 
-//void Client::stop() { }
+void Client::stop() {
+    running = false;
+}
 
 void Client::send(const Response &response, const bool wait_ack, const std::function<void(msp::ID)> &callback) {
     //
@@ -88,9 +119,26 @@ void Client::write(const uint8_t id, const ByteVector& data) {
 }
 
 const RawMessage& Client::read() {
-    asio::read(port->port, asio::buffer(port->header.data));
+    uint8_t c;
+    // find start of header
+    while(true) {
+        // find '$'
+        for(c=0; c!='$'; asio::read(port->port, asio::buffer(&c,1)));
+        // check 'M'
+        asio::read(port->port, asio::buffer(&c,1));
+        if(c=='M') { break; }
+    }
 
-    port->msg_in.id = port->header.header.id;
+    asio::read(port->port, asio::buffer(&c,1));
+    std::cout << "dir: " << c << std::endl;
+
+    asio::read(port->port, asio::buffer(&c,1));
+    std::cout << "size: " << std::hex << uint(c) << std::endl;
+    port->header.header.size = c;
+
+    asio::read(port->port, asio::buffer(&c,1));
+    std::cout << "id: " << std::hex << uint(c) << std::endl;
+    port->msg_in.id = uint8_t(c);
 
     port->msg_in.data.resize(port->header.header.size);
     asio::read(port->port, asio::buffer(port->msg_in.data));
