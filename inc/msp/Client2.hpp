@@ -6,7 +6,7 @@
 #include <thread>
 #include <atomic>
 #include <queue>
-
+#include <functional>
 #include <iostream>
 
 namespace msp {
